@@ -35,6 +35,12 @@ Copyright 2007, 2008 Daniel Zerbino (zerbino@ebi.ac.uk)
 #include "run.h"
 #include "utility.h"
 
+#ifdef _WIN32
+#define PRILL "I64"
+#else
+#define PRILL "ll"
+#endif
+
 #define ADENINE 0
 #define CYTOSINE 1
 #define GUANINE 2
@@ -1139,7 +1145,7 @@ static void exportPreNode_pg(FILE * outfile, PreNode * preNode, IDnum ID,
 	if (preNode == NULL)
 		return;
 
-	velvetFprintf(outfile, "NODE\t%ld\t%lld\n", (long) ID, (long long) preNode->length);
+	velvetFprintf(outfile, "NODE\t%ld\t%"PRILL"d\n", (long) ID, (long long) preNode->length);
 
 	if (preNode->length == 0) {
 		velvetFprintf(outfile, "\n");
@@ -1170,7 +1176,7 @@ static void exportPreNode_pg(FILE * outfile, PreNode * preNode, IDnum ID,
 }
 
 static void exportPreMarker(FILE * outfile, PreMarker* preMarker) {
-	velvetFprintf(outfile, "%li\t%lli\t%lli\t%lli\n", (long) preMarker->preNodeID, (long long) preMarker->preNodeStart, (long long) preMarker->referenceStart, (long long) preMarker->length);
+	velvetFprintf(outfile, "%li\t%"PRILL"i\t%"PRILL"i\t%"PRILL"i\n", (long) preMarker->preNodeID, (long long) preMarker->preNodeStart, (long long) preMarker->referenceStart, (long long) preMarker->length);
 }
 
 static void exportPreReference_pg(FILE * outfile, IDnum refIndex, PreGraph * preGraph) {

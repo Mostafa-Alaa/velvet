@@ -50,6 +50,12 @@ Copyright 2007, 2008 Daniel Zerbino (zerbino@ebi.ac.uk)
 #  define SET_BINARY_MODE(file)
 #endif
 
+#ifdef _WIN32
+#define PRILL "I64"
+#else
+#define PRILL "ll"
+#endif
+
 static Mask *allocateMask(SequencesWriter *seqWriteInfo)
 {
 	if (seqWriteInfo->m_maskMemory == NULL)
@@ -116,7 +122,7 @@ static int compareRefCoords(const void * ptrA, const void * ptrB) {
 	else {
 		if (A->finish > -1 && A->finish < B->start)
 			return -1;
-		else if (B->finish > -1 && A->start > B->finish) 
+		else if (B->finish > -1 && A->start > B->finish)
 			return 1;
 		else return 0;
 	}
@@ -169,7 +175,7 @@ static void destroyReferenceCoordinateTable(ReferenceCoordinateTable * table) {
 static void resizeReferenceCoordinateTable(ReferenceCoordinateTable * table, IDnum extraLength) {
 	if (table->array == NULL)
 		table->array = callocOrExit(extraLength, ReferenceCoordinate);
-	else 
+	else
 		table->array = reallocOrExit(table->array, table->arrayLength + extraLength, ReferenceCoordinate);
 }
 
@@ -207,15 +213,15 @@ static void addReferenceCoordinate(ReferenceCoordinateTable * table, char * name
 
 	if ((refCoord = findReferenceCoordinate(table, name, start, finish, positive_strand))) {
 		velvetLog("Overlapping reference coordinates:\n");
-		velvetLog("%s:%lli-%lli\n", name, (long long) start, (long long) finish);
-		velvetLog("%s:%lli-%lli\n", refCoord->name, (long long) refCoord->start, (long long) refCoord->finish);
+		velvetLog("%s:%"PRILL"i-%"PRILL"i\n", name, (long long) start, (long long) finish);
+		velvetLog("%s:%"PRILL"i-%"PRILL"i\n", refCoord->name, (long long) refCoord->start, (long long) refCoord->finish);
 		velvetLog("Exiting...\n");
-#ifdef DEBUG 
+#ifdef DEBUG
 		abort();
-#endif 
+#endif
 		exit(1);
 	}
-	
+
 	refCoord = &(table->array[table->arrayLength++]);
 
 	refCoord->name = name;
@@ -231,11 +237,11 @@ static void sortReferenceCoordinateTable(ReferenceCoordinateTable * table) {
 }
 
 //////////////////////////////////////////////////////////////////////////
-// File reading 
+// File reading
 //////////////////////////////////////////////////////////////////////////
 
 static void velvetifySequence(char * str, SequencesWriter *seqWriteInfo) {
-	int i;
+	size_t i;
 	char c;
 	size_t length = strlen(str);
 
@@ -276,7 +282,7 @@ static void velvetifySequence(char * str, SequencesWriter *seqWriteInfo) {
 					seqWriteInfo->m_current = *(seqWriteInfo->m_referenceMask);
 				} else {
 					seqWriteInfo->m_current->next = newMask(seqWriteInfo, seqWriteInfo->m_position);
-					seqWriteInfo->m_current = seqWriteInfo->m_current->next;		
+					seqWriteInfo->m_current = seqWriteInfo->m_current->next;
 				}
 				seqWriteInfo->m_openMask = true;
 				seqWriteInfo->m_position += 1;
@@ -285,7 +291,7 @@ static void velvetifySequence(char * str, SequencesWriter *seqWriteInfo) {
 				seqWriteInfo->m_position += 1;
 			}
 		}
-	} 
+	}
 }
 
 static void reverseComplementSequence(char * str)
@@ -425,7 +431,7 @@ static void readRawFile(SequencesWriter *seqWriteInfo, char *filename, Category 
 
 	if (strcmp(filename, "-"))
 		file = fopen(filename, "r");
-	else 
+	else
 		file = stdin;
 
 	if (file != NULL)
@@ -433,7 +439,7 @@ static void readRawFile(SequencesWriter *seqWriteInfo, char *filename, Category 
 	else
 		exitErrorf(EXIT_FAILURE, true, "Could not open %s", filename);
 
-	while(fgets(line, maxline, file)) { 
+	while(fgets(line, maxline, file)) {
 		if (strlen(line) >= maxline - 1) {
 			velvetLog("Raw sequence files cannot contain reads longer than %i bp\n", maxline - 1);
 #ifdef DEBUG
@@ -452,7 +458,7 @@ static void readRawFile(SequencesWriter *seqWriteInfo, char *filename, Category 
 	velvetLog("Done\n");
 }
 
-// Imports sequences from a zipped raw file 
+// Imports sequences from a zipped raw file
 // Memory space allocated within this function.
 static void readRawGZFile(SequencesWriter *seqWriteInfo, char *filename, Category cat, IDnum *sequenceIndex)
 {
@@ -464,7 +470,7 @@ static void readRawGZFile(SequencesWriter *seqWriteInfo, char *filename, Categor
 	initFastX(seqWriteInfo, cat);
 	if (strcmp(filename, "-"))
 		file = gzopen(filename, "rb");
-	else { 
+	else {
 		file = gzdopen(fileno(stdin), "rb");
 		SET_BINARY_MODE(stdin);
 	}
@@ -519,8 +525,8 @@ static void fillReferenceCoordinateTable(char *filename, ReferenceCoordinateTabl
 
 			if (strchr(line, ':')) {
 				sscanf(strtok(line, ":-\r\n\t "), ">%s", name);
-				sscanf(strtok(NULL, ":-\r\n\t "), "%lli", &start);
-				sscanf(strtok(NULL, ":-\r\n\t "), "%lli", &finish);
+				sscanf(strtok(NULL, ":-\r\n\t "), "%"PRILL"i", &start);
+				sscanf(strtok(NULL, ":-\r\n\t "), "%"PRILL"i", &finish);
 				if (start <= finish)
 					addReferenceCoordinate(refCoords, name, start, finish, true);
 				else
@@ -638,14 +644,15 @@ static void readFastXFile(int fileType, SequencesWriter *seqWriteInfo, char *fil
 	FileGZOrAuto file;
 	IDnum counter = 0;
 
-        file.gzFile = file.autoFile = NULL;
-        if (fileType == AUTO) {
-        	file.autoFile = openFileAuto(filename);
-                if (!file.autoFile)
-                	exitErrorf(EXIT_FAILURE, false, "Unable to open file '%s' in auto mode", filename);
-                velvetLog("Reading file '%s' using '%s' as %s\n", filename, file.autoFile->decompressor, charToType(file.autoFile->first_char));
-        } else
-          file.gzFile = openFastXFile(fileType, filename);
+	file.autoFile = NULL;
+	file.gzFile   = NULL;
+    if (fileType == AUTO) {
+    	file.autoFile = openFileAuto(filename);
+            if (!file.autoFile)
+            	exitErrorf(EXIT_FAILURE, false, "Unable to open file '%s' in auto mode", filename);
+            velvetLog("Reading file '%s' using '%s' as %s\n", filename, file.autoFile->decompressor, charToType(file.autoFile->first_char));
+    } else
+      file.gzFile = openFastXFile(fileType, filename);
 
 	initFastX(seqWriteInfo, cat);
 	// Read a sequence at a time
@@ -677,21 +684,21 @@ static void readFastXPair(int fileType, SequencesWriter *seqWriteInfo, char *fil
 	if (cat==REFERENCE)
 		exitErrorf(EXIT_FAILURE, false, "Cannot read reference sequence in 'separate' read mode");
 
-        file1.gzFile = file1.autoFile = NULL;
-        file2.gzFile = file2.autoFile = NULL;
-        if (fileType == AUTO) {
-        	file1.autoFile = openFileAuto(filename1);
-                if (!file1.autoFile)
-                	exitErrorf(EXIT_FAILURE, false, "Unable to open file '%s' in auto mode", filename1);
-                velvetLog("Reading file '%s' using '%s' as %s\n", filename1, file1.autoFile->decompressor, charToType(file1.autoFile->first_char));
-        	file2.autoFile = openFileAuto(filename2);
-                if (!file2.autoFile)
-                	exitErrorf(EXIT_FAILURE, false, "Unable to open file '%s' in auto mode", filename2);
-                velvetLog("Reading file '%s' using '%s' as %s\n", filename2, file2.autoFile->decompressor, charToType(file2.autoFile->first_char));
-        } else {
-        	file1.gzFile = openFastXFile(fileType, filename1);
-                file2.gzFile = openFastXFile(fileType, filename2);
-        }
+	file1.autoFile = file2.autoFile = NULL;
+	file1.gzFile   = file2.gzFile   = NULL;
+    if (fileType == AUTO) {
+    	file1.autoFile = openFileAuto(filename1);
+        if (!file1.autoFile)
+        	exitErrorf(EXIT_FAILURE, false, "Unable to open file '%s' in auto mode", filename1);
+        velvetLog("Reading file '%s' using '%s' as %s\n", filename1, file1.autoFile->decompressor, charToType(file1.autoFile->first_char));
+    	file2.autoFile = openFileAuto(filename2);
+        if (!file2.autoFile)
+        	exitErrorf(EXIT_FAILURE, false, "Unable to open file '%s' in auto mode", filename2);
+        velvetLog("Reading file '%s' using '%s' as %s\n", filename2, file2.autoFile->decompressor, charToType(file2.autoFile->first_char));
+    } else {
+    	file1.gzFile = openFastXFile(fileType, filename1);
+        file2.gzFile = openFastXFile(fileType, filename2);
+    }
 	initFastX(seqWriteInfo, cat);
 
 	// Read a sequence at a time
@@ -745,9 +752,9 @@ static void addMapping(boolean orientation, Coordinate pos, char * seq, Referenc
 		seqWriteInfo->m_refCnt++;
 	} else {
 		if (refCoord->positive_strand) {
-			snprintf(buffer, *buffer_size, "%sM\t%li\t%lli\n", buffer, (long) orientation * refCoord->referenceID, (long long) (pos - refCoord->start));
-		} else 
-			snprintf(buffer, *buffer_size, "%sM\t%li\t%lli\n", buffer, (long) - orientation * refCoord->referenceID, (long long) (refCoord->finish - pos - strlen(seq)));
+			snprintf(buffer, *buffer_size, "%sM\t%li\t%"PRILL"i\n", buffer, (long) orientation * refCoord->referenceID, (long long) (pos - refCoord->start));
+		} else
+			snprintf(buffer, *buffer_size, "%sM\t%li\t%"PRILL"i\n", buffer, (long) - orientation * refCoord->referenceID, (long long) (refCoord->finish - pos - strlen(seq)));
 
 		if (*buffer_size - strlen(buffer) < 100) {
 			*buffer_size += 1000;
@@ -835,9 +842,9 @@ static void readSAMFile(SequencesWriter *seqWriteInfo, char *filename, Category 
 	if (cat == REFERENCE) {
 		velvetLog("SAM file %s cannot contain reference sequences.\n", filename);
 		velvetLog("Please check the command line.\n");
-#ifdef DEBUG 
+#ifdef DEBUG
 		abort();
-#endif 
+#endif
 		exit(1);
 	}
 
@@ -860,7 +867,7 @@ static void readSAMFile(SequencesWriter *seqWriteInfo, char *filename, Category 
 			qname = strtok(line, "\t");
 			flag  = strtok(NULL, "\t");
 			rname = strtok(NULL, "\t");
-			sscanf(strtok(NULL, "\t"), "%lli", &pos);
+			sscanf(strtok(NULL, "\t"), "%"PRILL"i", &pos);
 			orientation = 1;
 
 			// Mapping scor
@@ -981,9 +988,9 @@ static void readBAMFile(SequencesWriter *seqWriteInfo, char *filename, Category 
 	if (cat == REFERENCE) {
 		velvetLog("BAM file %s cannot contain reference sequences.\n", filename);
 		velvetLog("Please check the command line.\n");
-#ifdef DEBUG 
+#ifdef DEBUG
 		abort();
-#endif 
+#endif
 		exit(1);
 	}
 
@@ -1017,7 +1024,7 @@ static void readBAMFile(SequencesWriter *seqWriteInfo, char *filename, Category 
 
 		strLength = int32(buffer);
 		refNames[i] = callocOrExit(strLength, char);
-		
+
 		if (bufferCapacity < 4 + strLength) {
 			bufferCapacity = 4 + strLength + 4096;
 			buffer = reallocOrExit(buffer, bufferCapacity, unsigned char);
@@ -1026,7 +1033,7 @@ static void readBAMFile(SequencesWriter *seqWriteInfo, char *filename, Category 
 		if (gzread(file, buffer, 4 + strLength) != 4 + strLength)
 			exitErrorf(EXIT_FAILURE, false, "BAM alignment record truncated");
 
-		strcpy(refNames[i], (char *) buffer); 
+		strcpy(refNames[i], (char *) buffer);
 	}
 	if (isCreateBinary()) {
 		inputCnySeqFileStart(cat, seqWriteInfo);
@@ -1149,7 +1156,7 @@ static void printUsage()
 	puts("");
 	puts("\tdirectory\t\t: directory name for output files");
 	printf("\thash_length\t\t: odd integer (if even, it will be decremented) <= %i (if above, will be reduced)\n", MAXKMERLENGTH);
-	puts("\tfilename\t\t: path to sequence file or - for standard input");	
+	puts("\tfilename\t\t: path to sequence file or - for standard input");
 	puts("");
 	puts("File format options:");
 	puts("\t-fasta");
@@ -1195,9 +1202,9 @@ void parseDataAndReadFiles(char * filename, int argc, char **argv, boolean * dou
 
 	if (argc < 2) {
 		printUsage();
-#ifdef DEBUG 
+#ifdef DEBUG
 		abort();
-#endif 
+#endif
 		exit(1);
 	}
 
@@ -1214,7 +1221,7 @@ void parseDataAndReadFiles(char * filename, int argc, char **argv, boolean * dou
 		}
 	}
 
-	if (reuseSequences) 
+	if (reuseSequences)
 		return;
 
 	SequencesWriter * seqWriteInfo = NULL;
@@ -1261,9 +1268,9 @@ void parseDataAndReadFiles(char * filename, int argc, char **argv, boolean * dou
 				if (cat < 1 || cat > CATEGORIES) {
 					velvetLog("Unknown option: %s\n",
 					       argv[argIndex]);
-#ifdef DEBUG 
+#ifdef DEBUG
 					abort();
-#endif 
+#endif
 					exit(1);
 				}
 				cat--;
@@ -1276,9 +1283,9 @@ void parseDataAndReadFiles(char * filename, int argc, char **argv, boolean * dou
 				if (cat < 1 || cat > CATEGORIES) {
 					velvetLog("Unknown option: %s\n",
 					       argv[argIndex]);
-#ifdef DEBUG 
+#ifdef DEBUG
 					abort();
-#endif 
+#endif
 					exit(1);
 				}
 				cat--;
@@ -1304,9 +1311,9 @@ void parseDataAndReadFiles(char * filename, int argc, char **argv, boolean * dou
 			else {
 				velvetLog("Unknown option: %s\n",
 				       argv[argIndex]);
-#ifdef DEBUG 
+#ifdef DEBUG
 				abort();
-#endif 
+#endif
 				exit(1);
 			}
 
@@ -1352,9 +1359,9 @@ void parseDataAndReadFiles(char * filename, int argc, char **argv, boolean * dou
 			break;
 		default:
 			velvetLog("Screw up in parser... exiting\n");
-#ifdef DEBUG 
+#ifdef DEBUG
 			abort();
-#endif 
+#endif
 			exit(1);
 		}
 	}
@@ -1377,7 +1384,7 @@ void createReadPairingArray(ReadSet* reads)
 	Category cat = 0;
 	int phase = 0;
 
-	for (index = 0; index < reads->readCount; index++) 
+	for (index = 0; index < reads->readCount; index++)
 		mateReads[index] = -1;
 
 	reads->mateReads = mateReads;
@@ -1443,7 +1450,7 @@ int pairedCategories(ReadSet * reads)
 			pairedCat[reads->categories[index] / 2] = true;
 			if (pairedCatCount++ == CATEGORIES)
 				break;
-		} 	
+		}
 	}
 
 	return pairedCatCount;
@@ -1549,11 +1556,11 @@ ReadSet *importReadSet(char *filename)
 	velvetLog("%li sequences found\n", (long) sequenceCount);
 
 	reads->readCount = sequenceCount;
-	
+
 	if (reads->readCount == 0) {
 		reads->sequences = NULL;
 		reads->categories = NULL;
-		return reads;	
+		return reads;
 	}
 
 	reads->sequences = callocOrExit(sequenceCount, char *);
@@ -1580,7 +1587,7 @@ ReadSet *importReadSet(char *filename)
 			bpCount += (Coordinate) strlen(line) - 1;
 
 			if (sizeof(ShortLength) == sizeof(int16_t) && (bpCount > SHRT_MAX || bpCount < 0)) {
-				velvetLog("Read %li of length %lli, longer than limit %i\n",
+				velvetLog("Read %li of length %"PRILL"i, longer than limit %i\n",
 				       (long) sequenceIndex + 1, (long long) bpCount, SHRT_MAX);
 				velvetLog("You should modify recompile with the LONGSEQUENCES option (cf. manual)\n");
 				exit(1);

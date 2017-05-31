@@ -25,6 +25,12 @@ Copyright 2007, 2008, 2009 Daniel Zerbino (zerbino@ebi.ac.uk)
 #include "kmer.h"
 #include "utility.h"
 
+#ifdef _WIN32
+#define PRILL "I64"
+#else
+#define PRILL "ll"
+#endif
+
 static const uint64_t longLongLeftFilter = (uint64_t) 3 << 62; 
 static const uint32_t longLeftFilter = (uint32_t) 3 << 30; 
 static const uint16_t intLeftFilter = (uint16_t) 3 << 14; 
@@ -399,7 +405,7 @@ void printKmer(Kmer * kmer) {
 #if KMER_LONGLONGS
 	int i;
 	for (i = KMER_LONGLONGS - 1; i >= 0; i--)
-		velvetLog("%llx\t", (long long) kmer->longlongs[i]);
+		velvetLog("%"PRILL"x\t", (long long) kmer->longlongs[i]);
 #endif
 	velvetLog("\n");
 }

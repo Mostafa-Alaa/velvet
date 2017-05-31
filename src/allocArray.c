@@ -1,5 +1,5 @@
 /*
-Copyright 2009 Sylvain Foret (sylvain.foret@anu.edu.au) 
+Copyright 2009 Sylvain Foret (sylvain.foret@anu.edu.au)
 
     This file is part of Velvet.
 
@@ -22,6 +22,9 @@ Copyright 2009 Sylvain Foret (sylvain.foret@anu.edu.au)
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#ifdef _WIN32
+#include <sysinfoapi.h>
+#endif
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -49,11 +52,17 @@ struct AllocArrayFreeElement_st
 	ArrayIdx idx;
 };
 
-static void initAllocArray(AllocArray * array, size_t elementSize, char * name) 
+static void initAllocArray(AllocArray * array, size_t elementSize, char * name)
 {
 	array->freeElements = NULL;
 	array->elementSize = elementSize;
+#ifdef _WIN32
+	SYSTEM_INFO sysinfo;
+	GetSystemInfo(&sysinfo);
+	array->blockSize = sysinfo.dwPageSize * NB_PAGES_ALLOC;
+#else
 	array->blockSize = sysconf (_SC_PAGESIZE) * NB_PAGES_ALLOC;
+#endif
 	array->maxElements = array->blockSize / array->elementSize;
 	array->maxBlocks = BLOCKS_ALLOC_SIZE;
 	array->blocks = mallocOrExit (array->maxBlocks, void*);
@@ -266,7 +275,7 @@ ArrayIdx allocArrayArrayAllocate(AllocArray *array)
 	}
 	if (array->currentElements >= array->maxElements)
 	{
-		#pragma omp critical 
+		#pragma omp critical
 		array->currentBlocks = lastArray->currentBlocks++;
 
 		if (array->currentBlocks >= array->maxBlocks)

@@ -40,6 +40,18 @@ Copyright 2007, 2008 Daniel Zerbino (zerbino@ebi.ac.uk)
 #include "kmerOccurenceTable.h"
 #include "roadMap.h"
 
+#ifdef _WIN32
+#define PRILL "I64"
+#else
+#define PRILL "ll"
+#endif
+
+#ifndef timersub
+#define timersub(s,t,a) (void) ( (a)->tv_sec = (s)->tv_sec - (t)->tv_sec, \
+	((a)->tv_usec = (s)->tv_usec - (t)->tv_usec) < 0 && \
+	((a)->tv_usec += 1000000, (a)->tv_sec--) )
+#endif
+
 #define ADENINE 0
 #define CYTOSINE 1
 #define GUANINE 2
@@ -288,8 +300,8 @@ static ReferenceMapping * recordReferenceMappings(char * preGraphFilename, IDnum
 	ReferenceMapping * current = mappings;
 	IDnum referenceID;
 	long long_var;
-	long long coord1, coord2, coord3; 
-	
+	long long coord1, coord2, coord3;
+
 	// Go past NODE blocks
 	while(fgets(line, maxline, file))
 		if (line[0] == 'S')
@@ -301,7 +313,7 @@ static ReferenceMapping * recordReferenceMappings(char * preGraphFilename, IDnum
 	// Go relevant lines
 	while(fgets(line, maxline, file)) {
 		if (line[0] != 'S') {
-			sscanf(line, "%li\t%lli\t%lli\t%lli\n", &long_var, &coord1, &coord2, &coord3);
+			sscanf(line, "%li\t%"PRILL"i\t%"PRILL"i\t%"PRILL"i\n", &long_var, &coord1, &coord2, &coord3);
 			current->referenceID = referenceID;
 			current->nodeID = long_var;
 			current->nodeStart = coord1;
@@ -311,7 +323,7 @@ static ReferenceMapping * recordReferenceMappings(char * preGraphFilename, IDnum
 		} else {
 			sscanf(line, "SEQ\t%li\n", &long_var);
 			referenceID = long_var;
-		} 
+		}
 	}
 
 	fclose(file);
@@ -322,7 +334,7 @@ static int compareRefMaps(const void * ptrA, const void * ptrB) {
 	ReferenceMapping * A = (ReferenceMapping *) ptrA;
 	ReferenceMapping * B = (ReferenceMapping *) ptrB;
 
-	if (A->referenceID > B->referenceID) 
+	if (A->referenceID > B->referenceID)
 		return 1;
 	else if (A->referenceID < B->referenceID)
 		return -1;
@@ -331,7 +343,7 @@ static int compareRefMaps(const void * ptrA, const void * ptrB) {
 			return 1;
 		else if (A->referenceStart + A->length <= B->referenceStart)
 			return -1;
-		else 
+		else
 			return 0;
 	}
 }
@@ -349,11 +361,11 @@ static ReferenceMapping * computeReferenceMappings(char * preGraphFilename, Read
 	}
 
 	*referenceMappingLength = countMappings(preGraphFilename);
-	
+
 	if (*referenceMappingLength == 0)
 		return NULL;
 
-	referenceMappings = recordReferenceMappings(preGraphFilename, *referenceMappingLength); 
+	referenceMappings = recordReferenceMappings(preGraphFilename, *referenceMappingLength);
 	qsort(referenceMappings, *referenceMappingLength, sizeof(ReferenceMapping), compareRefMaps);
 
 	return referenceMappings;
@@ -399,7 +411,7 @@ static ReferenceMapping * findReferenceMapping(IDnum seqID, Coordinate refCoord,
 			leftIndex = middleIndex;
 	}
 }
- 
+
 ///////////////////////////////////////////////////////////
 // Node Mask
 ///////////////////////////////////////////////////////////
@@ -415,7 +427,7 @@ struct nodeMask_st {
 static int compareNodeMasks(const void * ptrA, const void * ptrB) {
 	NodeMask * A = (NodeMask *) ptrA;
 	NodeMask * B = (NodeMask *) ptrB;
-	
+
 	if (A->nodeID < B->nodeID)
 		return -1;
 	else if (A->nodeID > B->nodeID)
@@ -425,7 +437,7 @@ static int compareNodeMasks(const void * ptrA, const void * ptrB) {
 			return -1;
 		else if (A->start > B->start)
 			return 1;
-		else 
+		else
 			return 0;
 	}
 }
@@ -478,7 +490,7 @@ static KmerOccurenceTable *referenceGraphKmers(char *preGraphFilename,
 	IDnum index;
 	IDnum nodeID = 0;
 	Nucleotide nucleotide;
-	NodeMask * nodeMask = nodeMasks; 
+	NodeMask * nodeMask = nodeMasks;
 	Coordinate nodeMaskIndex = 0;
 
 	if (file == NULL)
@@ -536,7 +548,7 @@ nodeMasks[nodeMaskIndex].start;
 	while (line[0] == 'N') {
 		nodeID++;
 
-		// Fill in the initial word : 
+		// Fill in the initial word :
 		clearKmer(&word);
 		clearKmer(&antiWord);
 
@@ -554,7 +566,7 @@ nodeMasks[nodeMaskIndex].start;
 				exitErrorf(EXIT_FAILURE, true, "PreGraph file incomplete");
 			else
 				nucleotide = ADENINE;
-				
+
 
 			pushNucleotide(&word, nucleotide);
 			if (double_strand) {
@@ -589,22 +601,22 @@ nodeMasks[nodeMaskIndex].start;
 #endif
 			}
 
-			// Update mask if necessary 
-			if (nodeMask) { 
+			// Update mask if necessary
+			if (nodeMask) {
 				if (nodeMask->nodeID < nodeID || (nodeMask->nodeID == nodeID && index >= nodeMask->finish)) {
-					if (++nodeMaskIndex == nodeMaskCount) 
+					if (++nodeMaskIndex == nodeMaskCount)
 						nodeMask = NULL;
-					else 
+					else
 						nodeMask++;
 				}
 			}
 
 			// Check if not masked!
-			if (nodeMask) { 
+			if (nodeMask) {
 				if (nodeMask->nodeID == nodeID && index >= nodeMask->start && index < nodeMask->finish) {
 					index++;
 					continue;
-				} 			
+				}
 			}
 
 			if (!double_strand || compareKmers(&word, &antiWord) <= 0)
@@ -670,7 +682,7 @@ static void ghostThreadSequenceThroughGraph(TightString * tString,
 
 	// Verify that all short reads are reasonnably short
 	if (getLength(tString) > USHRT_MAX) {
-		velvetLog("Short read of length %lli, longer than limit %i\n",
+		velvetLog("Short read of length %"PRILL"i, longer than limit %i\n",
 			  (long long) getLength(tString), SHRT_MAX);
 		velvetLog("You should better declare this sequence as long, because it genuinely is!\n");
 		exit(1);
@@ -720,11 +732,11 @@ static void ghostThreadSequenceThroughGraph(TightString * tString,
 				refCoord = getStart(annotation) + annotIndex;
 			else
 				refCoord = getStart(annotation) - annotIndex;
-			
+
 			refMap = findReferenceMapping(refID, refCoord, referenceMappings, referenceMappingCount);
 			// If success
 			if (refMap) {
-				if (refID > 0) 
+				if (refID > 0)
 					node = getNodeInGraph(graph, refMap->nodeID);
 				else
 					node = getNodeInGraph(graph, -refMap->nodeID);
@@ -742,7 +754,7 @@ static void ghostThreadSequenceThroughGraph(TightString * tString,
 					kmerOccurence =
 					findKmerInKmerOccurenceTable(&word,
 								       kmerTable);
-				} else { 
+				} else {
 					kmerOccurence =
 					       findKmerInKmerOccurenceTable(&antiWord,
 						kmerTable);
@@ -753,22 +765,22 @@ static void ghostThreadSequenceThroughGraph(TightString * tString,
 					kmerOccurence =
 					findKmerInKmerOccurenceTable(&word,
 								       kmerTable);
-				} else { 
+				} else {
 					kmerOccurence =
 					       findKmerInKmerOccurenceTable(&antiWord,
 						kmerTable);
 					reversed = true;
 				}
 			}
-			
+
 			if (kmerOccurence) {
-				if (!reversed) 
+				if (!reversed)
 					node = getNodeInGraph(graph, getKmerOccurenceNodeID(kmerOccurence));
 				else
 					node = getNodeInGraph(graph, -getKmerOccurenceNodeID(kmerOccurence));
 			} else {
 				node = NULL;
-				if (previousNode) 
+				if (previousNode)
 					break;
 			}
 
@@ -844,7 +856,7 @@ static void threadSequenceThroughGraph(TightString * tString,
 	clearKmer(&word);
 	clearKmer(&antiWord);
 
-	// Fill in the initial word : 
+	// Fill in the initial word :
 	for (readNucleotideIndex = 0;
 	     readNucleotideIndex < wordLength - 1; readNucleotideIndex++) {
 		nucleotide = getNucleotide(readNucleotideIndex, tString);
@@ -880,9 +892,9 @@ static void threadSequenceThroughGraph(TightString * tString,
 
 		// Search for reference mapping
 		if (category == REFERENCE) {
-			if (referenceMappings) 
+			if (referenceMappings)
 				refMap = findReferenceMapping(seqID, index, referenceMappings, referenceMappingCount);
-			else 
+			else
 				refMap = NULL;
 
 			if (refMap) {
@@ -900,10 +912,10 @@ static void threadSequenceThroughGraph(TightString * tString,
 		else if (annotCount < annotationCount && uniqueIndex >= getPosition(annotation) && getAnnotSequenceID(annotation) <= refCount && getAnnotSequenceID(annotation) >= -refCount) {
 			refID = getAnnotSequenceID(annotation);
 			if (refID > 0)
-				refCoord = getStart(annotation) + annotIndex; 
+				refCoord = getStart(annotation) + annotIndex;
 			else
-				refCoord = getStart(annotation) - annotIndex; 
-			
+				refCoord = getStart(annotation) - annotIndex;
+
 			refMap = findReferenceMapping(refID, refCoord, referenceMappings, referenceMappingCount);
 			// If success
 			if (refMap) {
@@ -927,7 +939,7 @@ static void threadSequenceThroughGraph(TightString * tString,
 				if (previousNode)
 					break;
 			}
-		}		
+		}
 		// Search in table
 		else {
 			reversed = false;
@@ -936,7 +948,7 @@ static void threadSequenceThroughGraph(TightString * tString,
 					kmerOccurence =
 					findKmerInKmerOccurenceTable(&word,
 								       kmerTable);
-				} else { 
+				} else {
 					kmerOccurence =
 					       findKmerInKmerOccurenceTable(&antiWord,
 						kmerTable);
@@ -947,14 +959,14 @@ static void threadSequenceThroughGraph(TightString * tString,
 					kmerOccurence =
 					findKmerInKmerOccurenceTable(&word,
 								       kmerTable);
-				} else { 
+				} else {
 					kmerOccurence =
 					       findKmerInKmerOccurenceTable(&antiWord,
 						kmerTable);
 					reversed = true;
 				}
 			}
-			
+
 			if (kmerOccurence) {
 				if (!reversed) {
 					node = getNodeInGraph(graph, getKmerOccurenceNodeID(kmerOccurence));
@@ -965,13 +977,13 @@ static void threadSequenceThroughGraph(TightString * tString,
 				}
 			} else {
 				node = NULL;
-				if (previousNode) 
+				if (previousNode)
 					break;
 			}
 		}
 
 		// Increment positions
-		if (annotCount < annotationCount && uniqueIndex >= getPosition(annotation)) 
+		if (annotCount < annotationCount && uniqueIndex >= getPosition(annotation))
 			annotIndex++;
 		else
 			uniqueIndex++;
@@ -1077,7 +1089,7 @@ static void fillUpGraph(ReadSet * reads,
 	RoadMapArray *roadmap = NULL;
 	Coordinate *annotationOffset = NULL;
 	struct timeval start, end, diff;
-	
+
 	if (referenceMappings)
 	{
 		roadmap = importRoadMapArray(roadmapFilename);
@@ -1117,7 +1129,7 @@ static void fillUpGraph(ReadSet * reads,
 			annotationCount = getAnnotationCount(getRoadMapInArray(roadmap, readIndex));
 			annotations = getAnnotationInArray(roadmap->annotations, annotationOffset[readIndex]);
 		}
-	
+
 		ghostThreadSequenceThroughGraph(getTightStringInArray(reads->tSequences, readIndex),
 						kmerTable,
 						graph, readIndex + 1,
@@ -1189,7 +1201,7 @@ static void fillUpGraph(ReadSet * reads,
 	destroyKmerOccurenceTable(kmerTable);
 }
 
-Graph *importPreGraph(char *preGraphFilename, ReadSet * reads, char * roadmapFilename, 
+Graph *importPreGraph(char *preGraphFilename, ReadSet * reads, char * roadmapFilename,
 		      boolean readTracking, short int accelerationBits)
 {
 	boolean double_strand = false;
@@ -1201,7 +1213,7 @@ Graph *importPreGraph(char *preGraphFilename, ReadSet * reads, char * roadmapFil
 		return graph;
 
 	// If necessary compile reference -> node
-	ReferenceMapping * referenceMappings = computeReferenceMappings(preGraphFilename, reads, &referenceMappingCount, &referenceCount); 
+	ReferenceMapping * referenceMappings = computeReferenceMappings(preGraphFilename, reads, &referenceMappingCount, &referenceCount);
 	// Node -> reference maps
 	NodeMask * nodeMasks = computeNodeMasks(referenceMappings, referenceMappingCount, graph);
 
@@ -1247,7 +1259,7 @@ static void addReadsToGraph(TightString * tString,
 	// Neglect any read which will not be short paired
 	if (category / 2 >= CATEGORIES)
 		return;
-		
+
 	// Neglect any string shorter than WORDLENGTH :
 	if (getLength(tString) < wordLength)
 		return;
@@ -1255,7 +1267,7 @@ static void addReadsToGraph(TightString * tString,
 	clearKmer(&word);
 	clearKmer(&antiWord);
 
-	// Fill in the initial word : 
+	// Fill in the initial word :
 	for (readNucleotideIndex = 0;
 	     readNucleotideIndex < wordLength - 1; readNucleotideIndex++) {
 		nucleotide = getNucleotide(readNucleotideIndex, tString);
@@ -1289,7 +1301,7 @@ static void addReadsToGraph(TightString * tString,
 				kmerOccurence =
 					findKmerInKmerOccurenceTable(&word,
 							kmerTable);
-			} else { 
+			} else {
 				kmerOccurence =
 					findKmerInKmerOccurenceTable(&antiWord,
 							kmerTable);
@@ -1300,7 +1312,7 @@ static void addReadsToGraph(TightString * tString,
 				kmerOccurence =
 					findKmerInKmerOccurenceTable(&word,
 							kmerTable);
-			} else { 
+			} else {
 				kmerOccurence =
 					findKmerInKmerOccurenceTable(&antiWord,
 							kmerTable);
@@ -1318,7 +1330,7 @@ static void addReadsToGraph(TightString * tString,
 			}
 		} else {
 			node = NULL;
-			if (previousNode) 
+			if (previousNode)
 				break;
 		}
 
@@ -1366,7 +1378,7 @@ static void fillUpConnectedGraph(ReadSet * reads,
 	IDnum refCount = 0;   // refs not present in connected graphs
 	IDnum readIndex;
 	struct timeval start, end, diff;
-	
+
 	resetNodeStatus(graph);
 	// Allocate memory for the read pairs
 	if (!readStartsAreActivated(graph))

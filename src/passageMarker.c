@@ -32,6 +32,12 @@ Copyright 2007, 2008 Daniel Zerbino (zerbino@ebi.ac.uk)
 #include "tightString.h"
 #include "utility.h"
 
+#ifdef _WIN32
+#define PRILL "I64"
+#else
+#define PRILL "ll"
+#endif
+
 typedef struct passage_st PassageMarker;
 
 struct passage_st {
@@ -281,7 +287,7 @@ char *readPassageMarker(PassageMarkerI marker)
 		return s;
 
 	markerVal = PM_FI2P (marker);
-	sprintf(s, "MARKER %ld (%lld -> %lld):", (long) markerVal->sequenceID,
+	sprintf(s, "MARKER %ld (%"PRILL"d -> %"PRILL"d):", (long) markerVal->sequenceID,
 		(long long) markerVal->start, (long long) getPassageMarkerFinish(marker));
 
 	if (getPreviousInSequence(marker) == NULL_IDX)
@@ -484,7 +490,7 @@ boolean isInitial(PassageMarkerI marker)
 
 	markerVal = PM_FI2P (marker);
 	if (markerVal->twinMarker == NULL_IDX) {
-		velvetLog("Unpaired marker seq %ld start %lld node %ld\n",
+		velvetLog("Unpaired marker seq %ld start %"PRILL"d node %ld\n",
 		       (long) markerVal->sequenceID, (long long) markerVal->start,
 		       (long) getNodeID(markerVal->node));
 		velvetLog("SNAFU\n");
@@ -636,7 +642,7 @@ PassageMarkerI newPassageMarker(IDnum seqID, Coordinate start,
 	setFinishOffset(marker, finishOffset);
 
 	if (getPassageMarkerLength(marker) < 0) {
-		velvetLog("Negative marker %ld %lld %lld %lld\n",
+		velvetLog("Negative marker %ld %"PRILL"d %"PRILL"d %"PRILL"d\n",
 		       (long) getPassageMarkerSequenceID(marker),
 		       (long long) getPassageMarkerStart(marker),
 		       (long long) getPassageMarkerFinish(marker),
@@ -667,7 +673,7 @@ void exportMarker(FILE * outfile, PassageMarkerI marker,
 
 	velvetFprintf(outfile, "SEQ\t%li\n", (long) PM_FI2P (current)->sequenceID);
 	for (; current != NULL_IDX; current = PM_FI2P (current)->nextInSequence) {
-		velvetFprintf(outfile, "%ld\t%lld\t%lld\t%lld\t%lld",
+		velvetFprintf(outfile, "%ld\t%"PRILL"d\t%"PRILL"d\t%"PRILL"d\t%"PRILL"d",
 			(long) getNodeID(PM_FI2P (current)->node), (long long) getStartOffset(current),
 			(long long) getPassageMarkerStart(current),
 			(long long) getPassageMarkerFinish(current),

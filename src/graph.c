@@ -30,6 +30,12 @@ Copyright 2007, 2008 Daniel Zerbino (zerbino@ebi.ac.uk)
 #include "utility.h"
 #include "kmer.h"
 
+#ifdef _WIN32
+#define PRILL "I64"
+#else
+#define PRILL "ll"
+#endif
+
 #define ADENINE 0
 #define CYTOSINE 1
 #define GUANINE 2
@@ -1648,16 +1654,16 @@ static void exportNode(FILE * outfile, Node * node, void *withSequence)
 	if (node == NULL)
 		return;
 
-	velvetFprintf(outfile, "NODE\t%ld\t%lld", (long) node->ID, (long long) node->length);
+	velvetFprintf(outfile, "NODE\t%ld\t%"PRILL"d", (long) node->ID, (long long) node->length);
 
 #ifndef SINGLE_COV_CAT
 	Category cat;
 	for (cat = 0; cat < CATEGORIES; cat++)
-		velvetFprintf(outfile, "\t%lld\t%lld", (long long) node->virtualCoverage[cat],
+		velvetFprintf(outfile, "\t%"PRILL"d\t%"PRILL"d", (long long) node->virtualCoverage[cat],
 			(long long) node->originalVirtualCoverage[cat]);
 	velvetFprintf(outfile, "\n");
 #else
-	velvetFprintf(outfile, "\t%lld\n", (long long) node->virtualCoverage);
+	velvetFprintf(outfile, "\t%"PRILL"d\n", (long long) node->virtualCoverage);
 #endif
 
 	if (withSequence == NULL)
@@ -2015,7 +2021,7 @@ void exportGraph(char *filename, Graph * graph, TightString * sequences)
 			reads = graph->nodeReads[index];
 			for (readIndex = 0; readIndex < readCount;
 			     readIndex++)
-				velvetFprintf(outfile, "%ld\t%lld\t%d\n",
+				velvetFprintf(outfile, "%ld\t%"PRILL"d\t%d\n",
 					(long) reads[readIndex].readID,
 					(long long) reads[readIndex].position,
 					(int) reads[readIndex].offset);
@@ -2083,24 +2089,24 @@ Graph *importGraph(char *filename)
 		sscanf(strtok(NULL, "\t\n"), "%ld", &long_var);
 		nodeID = (IDnum) long_var;
 		node = addEmptyNodeToGraph(graph, nodeID);
-		sscanf(strtok(NULL, "\t\n"), "%lld", &longlong_var);
+		sscanf(strtok(NULL, "\t\n"), "%"PRILL"d", &longlong_var);
 		node->length = (Coordinate) longlong_var;
 
 #ifndef SINGLE_COV_CAT
 		Category cat;
 		Coordinate originalCoverage;
 		for (cat = 0; cat < CATEGORIES; cat++) {
-			sscanf(strtok(NULL, "\t\n"), "%lld", &longlong_var);
+			sscanf(strtok(NULL, "\t\n"), "%"PRILL"d", &longlong_var);
 			coverage = (Coordinate) longlong_var;
 			setVirtualCoverage(node, cat, coverage);
-			sscanf(strtok(NULL, "\t\n"), "%lld",
+			sscanf(strtok(NULL, "\t\n"), "%"PRILL"d",
 			       &longlong_var);
 			originalCoverage = (Coordinate) longlong_var;
 			setOriginalVirtualCoverage(node, cat,
 						   originalCoverage);
 		}
 #else
-		sscanf(strtok(NULL, "\t\n"), "%lld", &longlong_var);
+		sscanf(strtok(NULL, "\t\n"), "%"PRILL"d", &longlong_var);
 		coverage = (Coordinate) longlong_var;
 		setVirtualCoverage(node, coverage);
 #endif
@@ -2192,7 +2198,7 @@ Graph *importGraph(char *filename)
 
 		while (!finished && line[0] != 'N' && line[0] != 'S') {
 			sCount =
-			    sscanf(line, "%ld\t%lld\t%lld\t%lld\t%lld\n",
+			    sscanf(line, "%ld\t%"PRILL"d\t%"PRILL"d\t%"PRILL"d\t%"PRILL"d\n",
 				   &long_var, &longlong_var, &longlong_var2, &longlong_var3,
 				   &longlong_var4);
 			nodeID = (IDnum) long_var;
@@ -2239,7 +2245,7 @@ Graph *importGraph(char *filename)
 		if (!fgets(line, maxline, file))
 			exitErrorf(EXIT_FAILURE, true, "Graph file incomplete");
 		while (!finished && line[0] != 'N') {
-			sscanf(line, "%ld\t%lld\t%hd\n", &long_var,
+			sscanf(line, "%ld\t%"PRILL"d\t%hd\n", &long_var,
 			       &longlong_var, &short_var);
 			seqID = (IDnum) long_var;
 			startOffset = (Coordinate) longlong_var;
@@ -2310,7 +2316,7 @@ Graph *readPreGraphFile(char *preGraphFilename, boolean * double_strand)
 		nodeID++;
 		node = addEmptyNodeToGraph(graph, nodeID);
 
-		sscanf(line, "%*s\t%*i\t%lli\n", &longlong_var);
+		sscanf(line, "%*s\t%*i\t%"PRILL"i\n", &longlong_var);
 		node->length = (Coordinate) longlong_var;
 		nodeLength = node->length;
 		arrayLength = node->length / 4;
@@ -2474,7 +2480,7 @@ Graph *readConnectedGraphFile(char *connectedGraphFilename, boolean * double_str
 		sscanf(strtok(NULL, "\t\n"), "%ld", &long_var);
 		nodeID = (IDnum) long_var;
 		node = addEmptyNodeToGraph(graph, nodeID);
-		sscanf(strtok(NULL, "\t\n"), "%lld", &longlong_var);
+		sscanf(strtok(NULL, "\t\n"), "%"PRILL"d", &longlong_var);
 		node->length = (Coordinate) longlong_var;
 		nodeLength = node->length;
 
@@ -2482,17 +2488,17 @@ Graph *readConnectedGraphFile(char *connectedGraphFilename, boolean * double_str
 		Category cat;
 		Coordinate originalCoverage;
 		for (cat = 0; cat < CATEGORIES; cat++) {
-			sscanf(strtok(NULL, "\t\n"), "%lld", &longlong_var);
+			sscanf(strtok(NULL, "\t\n"), "%"PRILL"d", &longlong_var);
 			coverage = (Coordinate) longlong_var;
 			setVirtualCoverage(node, cat, coverage);
-			sscanf(strtok(NULL, "\t\n"), "%lld",
+			sscanf(strtok(NULL, "\t\n"), "%"PRILL"d",
 					&longlong_var);
 			originalCoverage = (Coordinate) longlong_var;
 			setOriginalVirtualCoverage(node, cat,
 					originalCoverage);
 		}
 #else
-		sscanf(strtok(NULL, "\t\n"), "%lld", &longlong_var);
+		sscanf(strtok(NULL, "\t\n"), "%"PRILL"d", &longlong_var);
 		coverage = (Coordinate) longlong_var;
 		setVirtualCoverage(node, coverage);
 #endif

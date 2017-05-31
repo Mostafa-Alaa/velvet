@@ -38,6 +38,18 @@ Copyright 2007, 2008 Daniel Zerbino (zerbino@ebi.ac.uk)
 #include "recycleBin.h"
 #include "binarySequences.h"
 
+#ifdef _WIN32
+#define PRILL "I64"
+#else
+#define PRILL "ll"
+#endif
+
+#ifndef timersub
+#define timersub(s,t,a) (void) ( (a)->tv_sec = (s)->tv_sec - (t)->tv_sec, \
+	((a)->tv_usec = (s)->tv_usec - (t)->tv_usec) < 0 && \
+	((a)->tv_usec += 1000000, (a)->tv_sec--) )
+#endif
+
 static RecycleBin * maskMemory = NULL;
 
 static Mask *allocateMask()
@@ -272,15 +284,15 @@ static Coordinate getNearestHSPIndex(Coordinate position, IDnum * sequenceIDs, C
 	Coordinate back_offset = -1;
 	Coordinate front_offset = -1;
 
-	for (back_offset = 1; position - back_offset > 0; back_offset++) 
+	for (back_offset = 1; position - back_offset > 0; back_offset++)
 		if (sequenceIDs[position - back_offset])
 			break;
 
-	for (front_offset = 1; position + front_offset < sequenceLength; front_offset++) 
+	for (front_offset = 1; position + front_offset < sequenceLength; front_offset++)
 		if (sequenceIDs[position + front_offset])
 			break;
 
-	if (back_offset == position && position + front_offset == sequenceLength) 
+	if (back_offset == position && position + front_offset == sequenceLength)
 		return -1;
 	else if (back_offset == position)
 		return position + front_offset;
@@ -309,17 +321,17 @@ static KmerOccurence * getMostAppropriateHit(Coordinate readCoord, Coordinate re
 	for (current = kmerOccurence; current; current = getNextKmerOccurence(current)) {
 		for (mapIndex = 0; mapIndex < mapCount; mapIndex++) {
 
-			// If wrong sequence or unconsistent orientation	
-			if ((direct && getKmerOccurenceNodeID(current) != mapSequenceID[mapIndex]) 
-			    || (!direct && getKmerOccurenceNodeID(current) != -mapSequenceID[mapIndex])) 
+			// If wrong sequence or unconsistent orientation
+			if ((direct && getKmerOccurenceNodeID(current) != mapSequenceID[mapIndex])
+			    || (!direct && getKmerOccurenceNodeID(current) != -mapSequenceID[mapIndex]))
 				continue;
 
 			// Compute where it is supposed to land on reference
 			if (mapSequenceID[mapIndex] < 0)
 				expectedPosition = mapCoord[mapIndex] + readLength - readCoord - 1;
-			else 
+			else
 				expectedPosition = mapCoord[mapIndex] + readCoord - wordLength + 1;
-		
+
 			// Compute positional error
 			positionError = getKmerOccurencePosition(current) - expectedPosition;
 
@@ -371,16 +383,16 @@ static boolean findOrInsertOccurenceInSplayTable(Kmer * kmer, IDnum * seqID,
 	if (sequenceIDs && sequenceIDs[readIndex]) {
 		if (direct)
 			*seqID = sequenceIDs[readIndex];
-		else 
+		else
 			*seqID = -sequenceIDs[readIndex];
-		if (sequenceIDs[readIndex] > 0) 
+		if (sequenceIDs[readIndex] > 0)
 			*position = coords[readIndex] + readIndex;
 		else
 			*position = coords[readIndex] - readIndex + readLength - 1;
 
 		return true;
 	}
-	else if (coords && coords[readIndex]) 
+	else if (coords && coords[readIndex])
 		// If in buffer zone:
 		return doFindOrInsertOccurenceInSplayTree(kmer, seqID, position, table);
 
@@ -388,7 +400,7 @@ static boolean findOrInsertOccurenceInSplayTable(Kmer * kmer, IDnum * seqID,
 	if (debug)
 		abort();
 	// Look up first in reference sequence k-mers
-	if (table->kmerOccurenceTable 
+	if (table->kmerOccurenceTable
 	    && (hit = findKmerInKmerOccurenceTable(kmer, table->kmerOccurenceTable))) {
 		if (!getNextKmerOccurence(hit)) {
 			*seqID = getKmerOccurenceNodeID(hit);
@@ -403,7 +415,7 @@ static boolean findOrInsertOccurenceInSplayTable(Kmer * kmer, IDnum * seqID,
 			}
 
 		}
-	} 
+	}
 
 	// If not, go through the novel k-mers
 	return doFindOrInsertOccurenceInSplayTree(kmer, seqID, position, table);
@@ -411,7 +423,7 @@ static boolean findOrInsertOccurenceInSplayTable(Kmer * kmer, IDnum * seqID,
 
 static void printAnnotations(IDnum *sequenceIDs, Coordinate * coords,
 			     TightString * array, SplayTable * table,
-			     FILE * file, boolean second_in_pair, IDnum seqID) 
+			     FILE * file, boolean second_in_pair, IDnum seqID)
 {
 	Coordinate readNucleotideIndex = 0;
 	Coordinate writeNucleotideIndex = 0;
@@ -427,7 +439,7 @@ static void printAnnotations(IDnum *sequenceIDs, Coordinate * coords,
 	IDnum referenceSequenceID = 0;
 	Nucleotide nucleotide;
 	char lineBuffer[MAXLINE];
-	TightString * tString = getTightStringInArray(array, seqID - 1); 
+	TightString * tString = getTightStringInArray(array, seqID - 1);
 	int thread = 0;
 
 	clearKmer(&word);
@@ -437,7 +449,7 @@ static void printAnnotations(IDnum *sequenceIDs, Coordinate * coords,
 	thread = omp_get_thread_num();
 #endif
 
-	if (debug) 
+	if (debug)
 		abort();
 
 	sprintf(lineBuffer, "ROADMAP %li\n", (long)seqID);
@@ -454,10 +466,10 @@ static void printAnnotations(IDnum *sequenceIDs, Coordinate * coords,
 		return;
 	}
 
-	// Fill in the initial word : 
+	// Fill in the initial word :
 	for (readNucleotideIndex = 0;
 	     readNucleotideIndex < table->WORDLENGTH - 1;
-	     readNucleotideIndex++) { 
+	     readNucleotideIndex++) {
 		nucleotide = getNucleotide(readNucleotideIndex, tString);
 		pushNucleotide(&word, nucleotide);
 #ifdef COLOR
@@ -487,7 +499,7 @@ static void printAnnotations(IDnum *sequenceIDs, Coordinate * coords,
 								      &sequenceID,
 								      &coord,
 								      table,
-								      sequenceIDs, 
+								      sequenceIDs,
 								      coords,
 								      readNucleotideIndex,
 								      getLength(tString),
@@ -498,8 +510,8 @@ static void printAnnotations(IDnum *sequenceIDs, Coordinate * coords,
 				    findOrInsertOccurenceInSplayTable(&antiWord,
 								      &sequenceID,
 								      &coord,
-								      table, 
-								      sequenceIDs, 
+								      table,
+								      sequenceIDs,
 								      coords,
 								      readNucleotideIndex,
 								      getLength(tString),
@@ -513,7 +525,7 @@ static void printAnnotations(IDnum *sequenceIDs, Coordinate * coords,
 								      &sequenceID,
 								      &coord,
 								      table,
-								      sequenceIDs, 
+								      sequenceIDs,
 								      coords,
 								      readNucleotideIndex,
 								      getLength(tString),
@@ -524,8 +536,8 @@ static void printAnnotations(IDnum *sequenceIDs, Coordinate * coords,
 				    findOrInsertOccurenceInSplayTable(&antiWord,
 								      &sequenceID,
 								      &coord,
-								      table, 
-								      sequenceIDs, 
+								      table,
+								      sequenceIDs,
 								      coords,
 								      readNucleotideIndex,
 								      getLength(tString),
@@ -537,7 +549,7 @@ static void printAnnotations(IDnum *sequenceIDs, Coordinate * coords,
 		if (!found) {
 			writeNucleotideIndex++;
 			if (!annotationClosed) {
-				sprintf(lineBuffer, "%ld\t%lld\t%lld\t%lld\n",
+				sprintf(lineBuffer, "%ld\t%"PRILL"d\t%"PRILL"d\t%"PRILL"d\n",
 					(long) referenceSequenceID, (long long) position,
 					(long long) start, (long long) finish);
 				appendLine(lineBuffer, thread);
@@ -573,7 +585,7 @@ static void printAnnotations(IDnum *sequenceIDs, Coordinate * coords,
 			}
 			// Previous non corresponding annotation
 			else {
-				sprintf(lineBuffer, "%ld\t%lld\t%lld\t%lld\n",
+				sprintf(lineBuffer, "%ld\t%"PRILL"d\t%"PRILL"d\t%"PRILL"d\n",
 					(long) referenceSequenceID, (long long) position,
 					(long long) start, (long long) finish);
 				appendLine(lineBuffer, thread);
@@ -593,7 +605,7 @@ static void printAnnotations(IDnum *sequenceIDs, Coordinate * coords,
 	}
 
 	if (!annotationClosed) {
-		sprintf(lineBuffer, "%ld\t%lld\t%lld\t%lld\n",
+		sprintf(lineBuffer, "%ld\t%"PRILL"d\t%"PRILL"d\t%"PRILL"d\n",
 			(long) referenceSequenceID, (long long) position,
 			(long long) start, (long long) finish);
 		appendLine(lineBuffer, thread);
@@ -627,12 +639,12 @@ static void computeClearHSPs(TightString * array, boolean second_in_pair, SplayT
 	*coords = callocOrExit(length, Coordinate);
 
 	// First pass for unambiguous hits
-	// Fill in the initial word : 
+	// Fill in the initial word :
 	clearKmer(&word);
 	clearKmer(&antiWord);
 	for (readNucleotideIndex = 0;
 	     readNucleotideIndex < table->WORDLENGTH - 1;
-	     readNucleotideIndex++) { 
+	     readNucleotideIndex++) {
 		nucleotide = getNucleotide(readNucleotideIndex, tString);
 		pushNucleotide(&word, nucleotide);
 #ifdef COLOR
@@ -666,42 +678,42 @@ static void computeClearHSPs(TightString * array, boolean second_in_pair, SplayT
 
 		if (table->double_strand) {
 			if (compareKmers(&word, &antiWord) <= 0) {
-				hit = findKmerInKmerOccurenceTable(&word, table->kmerOccurenceTable); 
+				hit = findKmerInKmerOccurenceTable(&word, table->kmerOccurenceTable);
 
-				if (hit && (hit = getMostAppropriateHit(readNucleotideIndex, getLength(tString), true, hit, mapCount, mapReferenceIDs, mapCoords, table->WORDLENGTH))) 
+				if (hit && (hit = getMostAppropriateHit(readNucleotideIndex, getLength(tString), true, hit, mapCount, mapReferenceIDs, mapCoords, table->WORDLENGTH)))
 					(*sequenceIDs)[readNucleotideIndex] = getKmerOccurenceNodeID(hit);
 			} else {
-				hit = findKmerInKmerOccurenceTable(&antiWord, table->kmerOccurenceTable); 
+				hit = findKmerInKmerOccurenceTable(&antiWord, table->kmerOccurenceTable);
 
-				if (hit && (hit = getMostAppropriateHit(readNucleotideIndex, getLength(tString), false, hit, mapCount, mapReferenceIDs, mapCoords, table->WORDLENGTH))) 
+				if (hit && (hit = getMostAppropriateHit(readNucleotideIndex, getLength(tString), false, hit, mapCount, mapReferenceIDs, mapCoords, table->WORDLENGTH)))
 					(*sequenceIDs)[readNucleotideIndex] = -getKmerOccurenceNodeID(hit);
 			}
 		} else {
 			if (!second_in_pair) {
-				hit = findKmerInKmerOccurenceTable(&word, table->kmerOccurenceTable); 
+				hit = findKmerInKmerOccurenceTable(&word, table->kmerOccurenceTable);
 
-				if (hit && (hit = getMostAppropriateHit(readNucleotideIndex, getLength(tString), true, hit, mapCount, mapReferenceIDs, mapCoords, table->WORDLENGTH))) 
+				if (hit && (hit = getMostAppropriateHit(readNucleotideIndex, getLength(tString), true, hit, mapCount, mapReferenceIDs, mapCoords, table->WORDLENGTH)))
 					(*sequenceIDs)[readNucleotideIndex] = getKmerOccurenceNodeID(hit);
 			} else {
-				hit = findKmerInKmerOccurenceTable(&antiWord, table->kmerOccurenceTable); 
+				hit = findKmerInKmerOccurenceTable(&antiWord, table->kmerOccurenceTable);
 
-				if (hit && (hit = getMostAppropriateHit(readNucleotideIndex, getLength(tString), false, hit, mapCount, mapReferenceIDs, mapCoords, table->WORDLENGTH))) 
+				if (hit && (hit = getMostAppropriateHit(readNucleotideIndex, getLength(tString), false, hit, mapCount, mapReferenceIDs, mapCoords, table->WORDLENGTH)))
 					(*sequenceIDs)[readNucleotideIndex] = -getKmerOccurenceNodeID(hit);
 			}
 		}
 
 		if ((*sequenceIDs)[readNucleotideIndex]) {
-			if ((*sequenceIDs)[readNucleotideIndex] > 0) 
+			if ((*sequenceIDs)[readNucleotideIndex] > 0)
 				(*coords)[readNucleotideIndex] = getKmerOccurencePosition(hit) - readNucleotideIndex;
 			else
 				(*coords)[readNucleotideIndex] = getKmerOccurencePosition(hit) + readNucleotideIndex - getLength(tString) + 1;
 		}
-	
+
 		// Barrier to flip-flopping
 		if ((*sequenceIDs)[readNucleotideIndex - 1] != 0
 		    && ((*sequenceIDs)[readNucleotideIndex] != (*sequenceIDs)[readNucleotideIndex - 1]
 			|| (*coords)[readNucleotideIndex] != (*coords)[readNucleotideIndex - 1])) {
-			// Break in continuity... skip k positions 
+			// Break in continuity... skip k positions
 			(*sequenceIDs)[readNucleotideIndex] = 0;
 			(*coords)[readNucleotideIndex] = -1;
 			readNucleotideIndex++;
@@ -721,7 +733,7 @@ static void computeClearHSPs(TightString * array, boolean second_in_pair, SplayT
 			}
 		} else
 			readNucleotideIndex++;
-		
+
 	}
 
 	free(mapReferenceIDs);
@@ -741,7 +753,7 @@ void inputSequenceIntoSplayTable(TightString * array,
 	//debug = (seqID == 29405);
 
 	// If appropriate, get the HSPs on reference sequences
-	if (table->kmerOccurenceTable) 
+	if (table->kmerOccurenceTable)
 		computeClearHSPs(array, second_in_pair, table, &sequenceIDs, &coords, mapReferenceIDs, mapCoords, mapCount, seqID);
 
 	// Go through read, eventually with annotations
@@ -784,10 +796,10 @@ void inputReferenceIntoSplayTable(TightString * tString,
 		return;
 	}
 
-	// Fill in the initial word : 
+	// Fill in the initial word :
 	for (readNucleotideIndex = 0;
 	     readNucleotideIndex < table->WORDLENGTH - 1;
-	     readNucleotideIndex++) { 
+	     readNucleotideIndex++) {
 		nucleotide = getNucleotide(readNucleotideIndex, tString);
 		pushNucleotide(&word, nucleotide);
 		if (table->double_strand) {
@@ -827,15 +839,15 @@ void inputReferenceIntoSplayTable(TightString * tString,
 		// Record k-mer
 		if (table->double_strand) {
 			if (compareKmers(&word, &antiWord) <= 0)
-				recordKmerOccurence(&word, currentIndex, 
+				recordKmerOccurence(&word, currentIndex,
 						    kmerIndex,
 						    table->kmerOccurenceTable);
 			else
-				recordKmerOccurence(&antiWord, -currentIndex, 
+				recordKmerOccurence(&antiWord, -currentIndex,
 							kmerIndex,
 							table->kmerOccurenceTable);
 		} else {
-			recordKmerOccurence(&word, currentIndex, 
+			recordKmerOccurence(&word, currentIndex,
 					    kmerIndex,
 					    table->kmerOccurenceTable);
 		}
@@ -849,9 +861,9 @@ void inputReferenceIntoSplayTable(TightString * tString,
 static Coordinate countReferenceKmers(ReadSet * reads, int wordLength) {
 	IDnum readIndex;
 	Coordinate length = 0;
-	
 
-	for (readIndex = 0; readIndex < reads->readCount && reads->categories[readIndex] == REFERENCE; readIndex++)	
+
+	for (readIndex = 0; readIndex < reads->readCount && reads->categories[readIndex] == REFERENCE; readIndex++)
 	{
 		Coordinate tmpLength = getLength(getTightStringInArray(reads->tSequences, readIndex));
 		if (tmpLength >= wordLength)
@@ -890,7 +902,7 @@ Mask ** scanReferenceSequences(FILE * file, IDnum referenceSequenceCount) {
 					current = referenceMasks[index];
 				} else {
 					current->next = newMask(position);
-					current = current->next;		
+					current = current->next;
 				}
 				openMask = true;
 				position++;
@@ -955,7 +967,7 @@ Mask ** scanBinaryReferenceSequences(SequencesReader *seqReadInfo, IDnum referen
 			} else {
 				current->next = newMask(start);
 				current->next->finish = finish;
-				current = current->next;		
+				current = current->next;
 			}
 		}
 		ungetc(c, file);
@@ -1009,7 +1021,7 @@ void inputSequenceArrayIntoSplayTableAndArchive(ReadSet * reads,
 	long long longlong_var;
 	Coordinate maxCount = 20;
 	Coordinate counter = 0;
-	// DEBUG 
+	// DEBUG
 	Mask ** referenceMasks = NULL;
 
 	if (outfile == NULL)
@@ -1211,7 +1223,7 @@ void inputSequenceArrayIntoSplayTableAndArchive(ReadSet * reads,
 					mapCoords[seqID] = callocOrExit(maxCount, Coordinate);
 				} else if (c == 'M') {
 					fgets(line, MAXLINE, seqFile);
-					sscanf(line,"\t%li\t%lli\n", &long_var, &longlong_var);
+					sscanf(line,"\t%li\t%"PRILL"i\n", &long_var, &longlong_var);
 					mapReferenceIDs[seqID][counter] = (IDnum) long_var;
 					mapCoords[seqID][counter] = (Coordinate) longlong_var;
 
@@ -1262,9 +1274,9 @@ void inputSequenceArrayIntoSplayTableAndArchive(ReadSet * reads,
 					velvetLog("Reference sequence placed after a non-reference read!\n");
 					velvetLog(">> Please re-order the filenames in your command line so as "
 						  "to have the reference sequence files before all the others\n");
-#ifdef DEBUG 
+#ifdef DEBUG
 					abort();
-#endif 
+#endif
 					exit(0);
 				}
 				second_in_pair = reads->categories[index] % 2 && isSecondInPair(reads, index);

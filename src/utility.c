@@ -1,5 +1,5 @@
 /*
-Copyright 2009 John Marshall (jm18@sanger.ac.uk) 
+Copyright 2009 John Marshall (jm18@sanger.ac.uk)
 
     This file is part of Velvet.
 
@@ -28,16 +28,28 @@ Copyright 2009 John Marshall (jm18@sanger.ac.uk)
 #include "globals.h"
 #include "utility.h"
 
+#ifdef _WIN32
+#define PRILL "I64"
+#else
+#define PRILL "ll"
+#endif
+
+#ifndef timersub
+#define timersub(s,t,a) (void) ( (a)->tv_sec = (s)->tv_sec - (t)->tv_sec, \
+	((a)->tv_usec = (s)->tv_usec - (t)->tv_usec) < 0 && \
+	((a)->tv_usec += 1000000, (a)->tv_sec--) )
+#endif
+
 static void allocExitError(const char *function, unsigned long long count,
                           unsigned long long size, const char *name)
 {
        if (size == 1)
                exitErrorf(EXIT_FAILURE, true,
-                          "Can't %s %llu %ss",
+                          "Can't %s %"PRILL"u %ss",
                           function, count, name);
        else
                exitErrorf(EXIT_FAILURE, true,
-                          "Can't %s %llu %ss totalling %llu bytes",
+                          "Can't %s %"PRILL"u %ss totalling %"PRILL"u bytes",
                           function, count, name, count * size);
 }
 
@@ -89,9 +101,9 @@ void exitErrorf(int exitStatus, boolean showErrno, const char *format, ...)
        fprintf(stderr, "\n");
        va_end(args);
 
-#ifdef DEBUG 
+#ifdef DEBUG
 	abort();
-#endif 
+#endif
        exit(exitStatus);
 }
 
@@ -117,12 +129,12 @@ void velvetLog(const char *format, ...)
   vprintf(format, args);
   va_end(args);
 
-#ifdef DEBUG 
+#ifdef DEBUG
   fflush(stdout);
 #endif
 }
 
-void velvetFprintf(FILE * file, const char * format, ...) 
+void velvetFprintf(FILE * file, const char * format, ...)
 {
 	va_list args;
 
@@ -132,9 +144,9 @@ void velvetFprintf(FILE * file, const char * format, ...)
 		       fprintf(stderr, "%s: ", programName);
 		fprintf(stderr, "Could not write into file\n");
 		va_end(args);
-#ifdef DEBUG 
+#ifdef DEBUG
 		abort();
-#endif 
+#endif
 		exit(EXIT_FAILURE);
 	}
 	va_end(args);

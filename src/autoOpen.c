@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/wait.h>
 #include <string.h>
 
 #include "autoOpen.h"
+
+#ifndef _WIN32
+#include <unistd.h>
+#include <sys/wait.h>
 
 // Implementation of "popen" that ignores stderr
 static FILE* popenNoStderr(const char *exe, const char *const argv[], int* retPid)
@@ -51,7 +53,7 @@ static int pcloseNoStderr(int pid, FILE* out)
 	rc = waitpid(pid, &status, 0);
 	return status;
 }
-
+#endif
 
 static const char const* decompressors[] = {"","pigz", "gunzip", "pbunzip2", "bunzip2", NULL};
 
@@ -69,10 +71,12 @@ AutoFile* openFileAuto(char*filename)
 			seqFile->pid = 0;
 			seqFile->decompressor = "Raw read";
 		} else {
+#ifndef _WIN32
 			//printf("Trying : %s\n", decompressors[i]);
 			char const* args[] = {decompressors[i], "-c", "-d", filename, NULL};
 			seqFile->file = popenNoStderr(args[0], args, &(seqFile->pid));
 			seqFile->decompressor = decompressors[i];
+#endif
 		}
 
 		if (!seqFile->file)
@@ -85,9 +89,11 @@ AutoFile* openFileAuto(char*filename)
                         seqFile->first_char = c;
 			return seqFile;
 		} else {
+#ifndef _WIN32
 			if (seqFile->pid)
 				pcloseNoStderr(seqFile->pid, seqFile->file);
 			else
+#endif
 				fclose(seqFile->file);
 		}
 	}
@@ -99,9 +105,10 @@ void closeFileAuto(AutoFile* seqFile)
 {
 	if (!seqFile)
 		return;
-
+#ifndef _WIN32
 	if (seqFile->pid)
 		pcloseNoStderr(seqFile->pid, seqFile->file);
 	else
+#endif
 		fclose(seqFile->file);
 }

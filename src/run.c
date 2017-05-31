@@ -21,12 +21,7 @@ Copyright 2007, 2008 Daniel Zerbino (zerbino@ebi.ac.uk)
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
-#include <uce-dirent.h>
-#define Arc v_Arc
-#else
 #include <dirent.h>
-#endif
 
 #include "run.h"
 
@@ -39,7 +34,7 @@ static void printUsage()
 	printf("\thash_length\t: EITHER an odd integer (if even, it will be decremented) <= %i (if above, will be reduced)\n", MAXKMERLENGTH);
 	printf("\t\t\t: OR: m,M,s where m and M are odd integers (if not, they will be decremented) with m < M <= %i (if above, will be reduced)\n", MAXKMERLENGTH);
 	puts("\t\t\t\tand s is a step (even number). Velvet will then hash from k=m to k=M with a step of s");
-	puts("\tfilename\t: path to sequence file or - for standard input");	
+	puts("\tfilename\t: path to sequence file or - for standard input");
 	puts("");
 	puts("File format options:");
 	puts("\t-fasta\t-fastq\t-raw\t-fasta.gz\t-fastq.gz\t-raw.gz\t-sam\t-bam\t-fmtAuto");
@@ -52,7 +47,7 @@ static void printUsage()
 	puts("Read type options:");
 	puts("\t-short\t-shortPaired");
 #if CATEGORIES <= 5
-	Category cat; 
+	Category cat;
 	for (cat = 2; cat <= CATEGORIES; cat++)
 	    printf("\t-short%i\t-shortPaired%i\n", cat, cat);
 #else
@@ -161,18 +156,18 @@ int main(int argc, char **argv)
 		    ("Velvet can't handle k-mers as long as %i! We'll stick to %i if you don't mind.\n",
 		     hashLength, MAXKMERLENGTH);
 		hashLength = MAXKMERLENGTH;
-	} 
+	}
 	if (hashLength <= 0) {
 		velvetLog("Invalid hash length: %s\n", argv[2]);
 		printUsage();
 		return 0;
-	} 
+	}
 	if (hashLength % 2 == 0) {
 		velvetLog
 		    ("Velvet can't work with even length k-mers, such as %i. We'll use %i instead, if you don't mind.\n",
 		     hashLength, hashLength - 1);
 		hashLength--;
-	} 
+	}
 
 	if (multiple_kmers) {
 		if (hashLengthMax > MAXKMERLENGTH + 1) {
@@ -180,12 +175,12 @@ int main(int argc, char **argv)
 			    ("Velvet can't handle k-mers as long as %i! We'll stick to %i if you don't mind.\n",
 			     hashLengthMax, MAXKMERLENGTH + 1);
 			hashLengthMax = MAXKMERLENGTH + 1;
-		} 
+		}
 		if (hashLengthMax <= hashLength) {
 			velvetLog("hashLengthMin < hashLengthMax is required %s", argv[2]);
 			printUsage();
 			return 0;
-		} 
+		}
 
 		if (hashLengthStep <= 0) {
 			velvetLog("Non-positive hash length! Setting it to 2\n");
@@ -215,7 +210,7 @@ int main(int argc, char **argv)
 			sprintf(buf,"%s_%d",argv[1],h);
 			directory = mallocOrExit(strlen(buf) + 100, char);
 			strcpy(directory,buf);
-		} else 
+		} else
 			directory = argv[1];
 
 		filename = mallocOrExit(strlen(directory) + 100, char);
@@ -225,7 +220,11 @@ int main(int argc, char **argv)
 		dir = opendir(directory);
 
 		if (dir == NULL)
+#ifdef _WIN32
+			mkdir(directory);
+#else
 			mkdir(directory, 0777);
+#endif
 		else {
 			sprintf(buf, "%s/PreGraph", directory);
 			remove(buf);

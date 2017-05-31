@@ -28,6 +28,12 @@ Copyright 2007, 2008 Daniel Zerbino (zerbino@ebi.ac.uk)
 #include "binarySequences.h"
 #include "globals.h"
 
+#ifdef _WIN32
+#define PRILL "I64"
+#else
+#define PRILL "ll"
+#endif
+
 static void printUsage()
 {
 	puts("Usage:");
@@ -205,10 +211,10 @@ int main(int argc, char **argv)
 					readTracking = true;
 			}
 		} else if (strcmp(arg, "-ins_length") == 0) {
-			sscanf(argv[arg_index], "%lli", &longlong_var);
+			sscanf(argv[arg_index], "%"PRILL"i", &longlong_var);
 			insertLength[0] = (Coordinate) longlong_var;
 			if (insertLength[0] < 0) {
-				velvetLog("Invalid insert length: %lli\n",
+				velvetLog("Invalid insert length: %"PRILL"i\n",
 				       (long long) insertLength[0]);
 #ifdef DEBUG 
 				abort();
@@ -216,10 +222,10 @@ int main(int argc, char **argv)
 				exit(1);
 			}
 		} else if (strcmp(arg, "-ins_length_sd") == 0) {
-			sscanf(argv[arg_index], "%lli", &longlong_var);
+			sscanf(argv[arg_index], "%"PRILL"i", &longlong_var);
 			std_dev[0] = (Coordinate) longlong_var;
 			if (std_dev[0] < 0) {
-				velvetLog("Invalid std deviation: %lli\n",
+				velvetLog("Invalid std deviation: %"PRILL"i\n",
 				       (long long) std_dev[0]);
 #ifdef DEBUG 
 				abort();
@@ -227,10 +233,10 @@ int main(int argc, char **argv)
 				exit(1);
 			}
 		} else if (strcmp(arg, "-ins_length_long") == 0) {
-			sscanf(argv[arg_index], "%lli", &longlong_var);
+			sscanf(argv[arg_index], "%"PRILL"i", &longlong_var);
 			insertLengthLong = (Coordinate) longlong_var;
 		} else if (strcmp(arg, "-ins_length_long_sd") == 0) {
-			sscanf(argv[arg_index], "%lli", &longlong_var);
+			sscanf(argv[arg_index], "%"PRILL"i", &longlong_var);
 			std_dev_long = (Coordinate) longlong_var;
 		} else if (strncmp(arg, "-ins_length", 11) == 0
 			   && strchr(arg, 'd') == NULL) {
@@ -243,10 +249,10 @@ int main(int argc, char **argv)
 #endif 
 				exit(1);
 			}
-			sscanf(argv[arg_index], "%lli", &longlong_var);
+			sscanf(argv[arg_index], "%"PRILL"i", &longlong_var);
 			insertLength[cat - 1] = (Coordinate) longlong_var;
 			if (insertLength[cat - 1] < 0) {
-				velvetLog("Invalid insert length: %lli\n",
+				velvetLog("Invalid insert length: %"PRILL"i\n",
 				       (long long) insertLength[cat - 1]);
 #ifdef DEBUG 
 				abort();
@@ -263,10 +269,10 @@ int main(int argc, char **argv)
 #endif 
 				exit(1);
 			}
-			sscanf(argv[arg_index], "%lli", &longlong_var);
+			sscanf(argv[arg_index], "%"PRILL"i", &longlong_var);
 			std_dev[cat - 1] = (Coordinate) longlong_var;
 			if (std_dev[cat - 1] < 0) {
-				velvetLog("Invalid std deviation: %lli\n",
+				velvetLog("Invalid std deviation: %"PRILL"i\n",
 				       (long long) std_dev[cat - 1]);
 #ifdef DEBUG 
 				abort();
@@ -289,10 +295,10 @@ int main(int argc, char **argv)
 			exportAlignments =
 			    (strcmp(argv[arg_index], "yes") == 0);
 		} else if (strcmp(arg, "-min_contig_lgth") == 0) {
-			sscanf(argv[arg_index], "%lli", &longlong_var);
+			sscanf(argv[arg_index], "%"PRILL"i", &longlong_var);
 			minContigLength = (Coordinate) longlong_var;
 		} else if (strcmp(arg, "-coverage_mask") == 0) {
-			sscanf(argv[arg_index], "%lli", &longlong_var);
+			sscanf(argv[arg_index], "%"PRILL"i", &longlong_var);
 			coverageMask = (IDnum) longlong_var;
 		} else if (strcmp(arg, "-accel_bits") == 0) {
 			sscanf(argv[arg_index], "%hi", &accelerationBits);

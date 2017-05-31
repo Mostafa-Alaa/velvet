@@ -30,6 +30,12 @@ Copyright 2007, 2008 Daniel Zerbino (zerbino@ebi.ac.uk)
 #include "utility.h"
 #include "kmer.h"
 
+#ifdef _WIN32
+#define PRILL "I64"
+#else
+#define PRILL "ll"
+#endif
+
 #ifndef NULL
 #define NULL 0
 #endif
@@ -158,7 +164,7 @@ RoadMapArray *importRoadMapArray(char *filename)
 			nextAnnotation = result->annotations + annotationOffset[thisSeqID - 1];
 			rdmap = result->array + thisSeqID - 1;
 		} else {
-			sscanf(line, "%ld\t%lld\t%lld\t%lld\n", &long_var,
+			sscanf(line, "%ld\t%"PRILL"d\t%"PRILL"d\t%"PRILL"d\n", &long_var,
 			       &longlong_var, &longlong_var2, &longlong_var3);
 			seqID = (IDnum) long_var;
 			position = (Coordinate) longlong_var;
@@ -225,7 +231,7 @@ RoadMapArray *importReferenceRoadMapArray(char *filename)
 	{
 		if (line[0] != 'R')
 		{
-			sscanf(line, "%ld\t%lld\t%lld\t%lld\n", &long_var,
+			sscanf(line, "%ld\t%"PRILL"d\t%"PRILL"d\t%"PRILL"d\n", &long_var,
 			       &longlong_var, &longlong_var2, &longlong_var3);
 			seqID = (IDnum) long_var;
 			if (seqID <= result->referenceCount && seqID >= -result->referenceCount)
@@ -262,7 +268,7 @@ RoadMapArray *importReferenceRoadMapArray(char *filename)
 			rdmap = result->array + thisSeqID - 1;
 			rdmapIndex++;
 		} else {
-			sscanf(line, "%ld\t%lld\t%lld\t%lld\n", &long_var,
+			sscanf(line, "%ld\t%"PRILL"d\t%"PRILL"d\t%"PRILL"d\n", &long_var,
 			       &longlong_var, &longlong_var2, &longlong_var3);
 			seqID = (IDnum) long_var;
 			if (seqID <= result->referenceCount && seqID >= -result->referenceCount)

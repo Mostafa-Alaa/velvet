@@ -23,7 +23,7 @@ Copyright 2007, 2008 Daniel Zerbino (zerbino@ebi.ac.uk)
 #include <time.h>
 #include <math.h>
 #include <sys/time.h>
- 
+
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -37,6 +37,18 @@ Copyright 2007, 2008 Daniel Zerbino (zerbino@ebi.ac.uk)
 #include "readSet.h"
 #include "utility.h"
 #include "scaffold.h"
+
+#ifdef _WIN32
+#define PRILL "I64"
+#else
+#define PRILL "ll"
+#endif
+
+#ifndef timersub
+#define timersub(s,t,a) (void) ( (a)->tv_sec = (s)->tv_sec - (t)->tv_sec, \
+	((a)->tv_usec = (s)->tv_usec - (t)->tv_usec) < 0 && \
+	((a)->tv_usec += 1000000, (a)->tv_sec--) )
+#endif
 
 #define BLOCK_SIZE  100000
 #define LN2 1.4
@@ -573,11 +585,11 @@ static unsigned char * countCoOccurences(IDnum * coOccurencesCount,
 
 		// Check for co-occurence
 		// We know that for each read the read occurences are ordered by increasing node ID
-		// Therefore one list is followed by increasing index, whereas the other is followed 
+		// Therefore one list is followed by increasing index, whereas the other is followed
 		// by decreasing index
 		libID = cats[readIndex] / 2;
 		readPairIndex = readPairs[readIndex];
-		
+
 		readOccurenceIndex = 0;
 		readOccurence = readNodes[readIndex + 1];
 		readNodeCount = readNodeCounts[readIndex + 1];
@@ -593,16 +605,16 @@ static unsigned char * countCoOccurences(IDnum * coOccurencesCount,
 					break;
 				} else {
 					readOccurence++;
-					readOccurenceIndex++;	
+					readOccurenceIndex++;
 					readPairOccurence--;
-					readPairOccurenceIndex--;	
+					readPairOccurenceIndex--;
 				}
 			} else if (readOccurence->nodeID < -readPairOccurence->nodeID) {
 				readOccurence++;
-				readOccurenceIndex++;	
+				readOccurenceIndex++;
 			} else {
 				readPairOccurence--;
-				readPairOccurenceIndex--;	
+				readPairOccurenceIndex--;
 			}
 		}
 	}
@@ -632,13 +644,13 @@ static void measureCoOccurences(IDnum ** coOccurences,
 		// Eliminating dodgy, unpaired, already counted or user-specified reads
 		if (!(interestingReads[readIndex / 8] & (1 << (readIndex & 7))))
 			continue;
-		
+
 		// Find co-occurence
 		// We know that for each read the read occurences are ordered by increasing node ID
 		libID = cats[readIndex]/2;
-		readPairIndex = readPairs[readIndex];	
+		readPairIndex = readPairs[readIndex];
 		observationIndex = coOccurencesIndex[libID];
-		
+
 		readOccurence = readNodes[readIndex + 1];
 		readOccurenceIndex = 0;
 		readNodeCount = readNodeCounts[readIndex + 1];
@@ -649,25 +661,25 @@ static void measureCoOccurences(IDnum ** coOccurences,
 		while (readOccurenceIndex < readNodeCount && readPairOccurenceIndex >= 0) {
 			if (readOccurence->nodeID == -readPairOccurence->nodeID) {
 				if (readOccurence->position > 0 && readPairOccurence->position > 0) {
-					coOccurences[libID][observationIndex] = 
+					coOccurences[libID][observationIndex] =
 					      getNodeLength(getNodeInGraph(graph, readOccurence->nodeID))
 					      + getWordLength(graph) - 1
-					      - (readOccurence->position - readOccurence->offset)	
+					      - (readOccurence->position - readOccurence->offset)
 					      - (readPairOccurence->position - readPairOccurence->offset);
 					coOccurencesIndex[libID]++;
 					break;
 				} else {
 					readOccurence++;
-					readOccurenceIndex++;	
+					readOccurenceIndex++;
 					readPairOccurence--;
-					readPairOccurenceIndex--;	
+					readPairOccurenceIndex--;
 				}
 			} else if (readOccurence->nodeID < -readPairOccurence->nodeID) {
 				readOccurence++;
-				readOccurenceIndex++;	
+				readOccurenceIndex++;
 			} else {
 				readPairOccurence--;
-				readPairOccurenceIndex--;	
+				readPairOccurenceIndex--;
 			}
 		}
 	}
@@ -681,7 +693,7 @@ int compareReadOccurences(const void *A, const void * B) {
 		return 1;
 	if (*cA == *cB)
 		return 0;
-	return -1;	
+	return -1;
 }
 
 static void estimateLibraryInsertLength(IDnum * coOccurences, IDnum coOccurencesCount, Category libID) {
@@ -692,7 +704,7 @@ static void estimateLibraryInsertLength(IDnum * coOccurences, IDnum coOccurences
 
 	median = coOccurences[coOccurencesCount / 2];
 
-	// Modified variance around the median (proxy for expected value) 
+	// Modified variance around the median (proxy for expected value)
 	// interval censoring
 	variance = 0;
 	for (index = 0; index < coOccurencesCount; index++) {
@@ -701,7 +713,7 @@ static void estimateLibraryInsertLength(IDnum * coOccurences, IDnum coOccurences
 			counter++;
 		}
 	}
-	if (counter) 
+	if (counter)
 		variance /= counter;
 	else {
 		variance = 0;
@@ -709,12 +721,12 @@ static void estimateLibraryInsertLength(IDnum * coOccurences, IDnum coOccurences
 			variance += (coOccurences[index] - median) * (coOccurences[index] - median);
 		variance /= coOccurencesCount;
 	}
-	
+
 	// To avoid subsequent divisions by zero
 	if (variance == 0)
 		variance = 1;
 
-	velvetLog("Paired-end library %i has length: %lli, sample standard deviation: %lli\n", libID + 1, (long long) median, (long long) sqrt(variance));
+	velvetLog("Paired-end library %i has length: %"PRILL"i, sample standard deviation: %"PRILL"i\n", libID + 1, (long long) median, (long long) sqrt(variance));
 	setInsertLengths(graph, libID, median, sqrt(variance));
 	estimated[libID] = true;
 }
@@ -732,7 +744,7 @@ static void estimateLibraryInsertLengths(IDnum ** coOccurences, IDnum * coOccure
 
 static void estimateMissingInsertLengths(ReadOccurence ** readNodes, IDnum * readNodeCounts, IDnum * readPairs, Category * cats) {
 	IDnum * coOccurences[CATEGORIES + 1];
-	IDnum coOccurencesCounts[CATEGORIES + 1]; 
+	IDnum coOccurencesCounts[CATEGORIES + 1];
 	Category libID;
 
 	velvetLog("Estimating library insert lengths...\n");
@@ -747,7 +759,7 @@ static void estimateMissingInsertLengths(ReadOccurence ** readNodes, IDnum * rea
 
 	for (libID = 0; libID < CATEGORIES + 1; libID++)
 		free(coOccurences[libID]);
-	
+
 	free(interestingReads);
 
 	velvetLog("Done\n");
@@ -788,7 +800,7 @@ Connection *createNewConnection(IDnum nodeID, IDnum node2ID,
 	IDnum nodeIndex = nodeID + nodeCount(graph);
 	Connection *connect = allocateConnection();
 
-	// Fill in 
+	// Fill in
 	connect->destination = destination;
 	connect->direct_count = direct_count;
 	connect->paired_count = paired_count;
@@ -1220,7 +1232,7 @@ static void createConnection(IDnum nodeID,
 
 	if (getUniqueness(getNodeInGraph(graph, node2ID)) && node2ID < nodeID) {
 		return;
-	}	
+	}
 
 #ifdef _OPENMP
 	lockTwoNodes(nodeID, node2ID);
@@ -1283,7 +1295,7 @@ static void projectFromSingleRead(Node * node,
 		    -readOccurence->position + getNodeLength(target) / 2;
 	}
 
-	if (readOccurence->offset < 0 || offset < 0) { 
+	if (readOccurence->offset < 0 || offset < 0) {
 		variance += length * length / 16;
 		//distance += 0;
 	} else {
@@ -1308,7 +1320,7 @@ static void projectFromSingleRead(Node * node,
 			else if (-distance < getNodeLength(node)/2 + getNodeLength(target)/2)
 				createConnection(-getNodeID(node), -getNodeID(target), 1,
 						 0, getNodeLength(node)/2 + getNodeLength(target)/2 , variance);
-			else 
+			else
 				createConnection(-getNodeID(node), -getNodeID(target), 1,
 						 0, -distance, variance);
 		}
@@ -1589,7 +1601,7 @@ static Connection **computeNodeToNodeMappings(ReadOccurence ** readNodes,
 		threads = 32;
 
 	#pragma omp parallel for num_threads(threads)
-#endif 
+#endif
 	for (nodeID = -nodes; nodeID <= nodes; nodeID++)
 	{
 		if (nodeID % 10000 == 0)
@@ -1621,7 +1633,7 @@ static Connection **computeNodeToNodeMappings(ReadOccurence ** readNodes,
 			velvetLog("Scaffolding MP library %i\n", cat);
 #ifdef _OPENMP
 			#pragma omp parallel for
-#endif 
+#endif
 			for (nodeID = -nodes; nodeID <= nodes; nodeID++)
 				projectFromNode(nodeID, readNodes, readNodeCounts,
 						readPairs, cats, dubious, lengths,
@@ -1731,7 +1743,7 @@ void printConnections(ReadSet * reads, boolean * shadows)
 		     connect = next) {
 			next = getNextConnection(connect);
 			printf
-			    ("CONNECT %ld %ld %ld %ld %lld %lld %lld %f %ld %ld",
+			    ("CONNECT %ld %ld %ld %ld %"PRILL"d %"PRILL"d %"PRILL"d %f %ld %ld",
 			     (long) index - nodeCount(graph),
 			     (long) getNodeID(connect->destination),
 			     (long) connect->direct_count,
@@ -1745,7 +1757,7 @@ void printConnections(ReadSet * reads, boolean * shadows)
 						     graph));
 			if (markerCount(node) == 1
 			    && markerCount(connect->destination) == 1)
-				printf(" %lld %lld %lld", (long long)
+				printf(" %"PRILL"d %"PRILL"d %"PRILL"d", (long long)
 				       getPassageMarkerFinish(getMarker
 							      (node)),
 				       (long long)
@@ -1767,7 +1779,7 @@ void printConnections(ReadSet * reads, boolean * shadows)
 								  connect,
 								  counts,
 								  0));
-			printf(" %lld",
+			printf(" %"PRILL"d",
 			       (long long) (getConnectionDistance(connect)
 					    - (getNodeLength(node) +
 					       getNodeLength

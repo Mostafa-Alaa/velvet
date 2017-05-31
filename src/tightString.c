@@ -26,6 +26,12 @@ Copyright 2007, 2008 Daniel Zerbino (zerbino@ebi.ac.uk)
 #include "tightString.h"
 #include "utility.h"
 
+#ifdef _WIN32
+#define PRILL "I64"
+#else
+#define PRILL "ll"
+#endif
+
 static const Nucleotide Adenine = 0;
 static const Nucleotide Cytosine = 1;
 static const Nucleotide Guanine = 2;
@@ -347,7 +353,7 @@ void exportTightString(FILE * outfile, TightString * sequence, IDnum index)
 	if (sequence == NULL)
 		return;
 
-	velvetFprintf(outfile, ">SEQUENCE_%ld_length_%lld\n", (long) index,
+	velvetFprintf(outfile, ">SEQUENCE_%ld_length_%"PRILL"d\n", (long) index,
 		(long long) getLength(sequence));
 
 	start = 0;

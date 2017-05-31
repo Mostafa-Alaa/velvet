@@ -24,6 +24,7 @@ Copyright 2011 Convey Computer Corporation (info@conveycomputer.com)
 #include <math.h>
 #include <time.h>
 #include <limits.h>
+#include <inttypes.h>
 
 #include "globals.h"
 #include "tightString.h"
@@ -31,7 +32,9 @@ Copyright 2011 Convey Computer Corporation (info@conveycomputer.com)
 #include "binarySequences.h"
 #include "utility.h"
 
-#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
+#if !defined(BUNDLEDZLIB)
+#include <zlib.h>
+#elif defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
 #include "../third-party/zlib-1.2.3/Win32/include/zlib.h"
 #else
 #include "../third-party/zlib-1.2.3/zlib.h"
@@ -43,6 +46,12 @@ Copyright 2011 Convey Computer Corporation (info@conveycomputer.com)
 #  define SET_BINARY_MODE(file) setmode(fileno(file), O_BINARY)
 #else
 #  define SET_BINARY_MODE(file)
+#endif
+
+#ifdef _WIN32
+#define PRILL "I64"
+#else
+#define PRILL "ll"
 #endif
 
 // write defines, typedefs, and protos
@@ -101,7 +110,7 @@ FILE *openCnySeqForRead(const char *fileName, CnyUnifiedSeqFileHeader *seqFileHe
 	return pFile;
 }
 
-static boolean refillCnySeqReadBuffer(SequencesReader *seqReadInfo) 
+static boolean refillCnySeqReadBuffer(SequencesReader *seqReadInfo)
 {
 	uint64_t readLen = (USF_READ_BUF_SIZE < seqReadInfo->m_unifiedSeqFileHeader.m_seqNuclStoreSize - seqReadInfo->m_readBufPos) ?
 		USF_READ_BUF_SIZE : seqReadInfo->m_unifiedSeqFileHeader.m_seqNuclStoreSize - seqReadInfo->m_readBufPos;
@@ -132,11 +141,11 @@ static int32_t readCnySeqUint8(SequencesReader *seqReadInfo)
 		return -1;
 	}
 
-	// printf("m_pCurrentReadPtr %llx\n", (long long) pReadInfo->m_pCurrentReadPtr);
+	// printf("m_pCurrentReadPtr %"PRILL"x\n", (long long) pReadInfo->m_pCurrentReadPtr);
 	return *seqReadInfo->m_pCurrentReadPtr++;
 }
 
-uint32_t readCnySeqUint32(SequencesReader *seqReadInfo) 
+uint32_t readCnySeqUint32(SequencesReader *seqReadInfo)
 {
 	uint32_t data;
 	data = 0;
@@ -217,7 +226,7 @@ boolean advanceCnySeqCurrentRead(SequencesReader *seqReadInfo)
 	}
 }
 
-void resetCnySeqCurrentRead(SequencesReader *seqReadInfo) 
+void resetCnySeqCurrentRead(SequencesReader *seqReadInfo)
 {
 	seqReadInfo->m_pReadBufEnd = seqReadInfo->m_pReadBuffer;
 	seqReadInfo->m_pNextReadPtr = seqReadInfo->m_pReadBuffer;
@@ -278,7 +287,7 @@ ReadSet *importCnyReadSet(char *filename)
 		reads->sequences = NULL;
 		reads->categories = NULL;
 		free(seqReadInfo.m_pReadBuffer);
-		return reads;	
+		return reads;
 	}
 
 	reads->sequences = NULL;
@@ -292,7 +301,7 @@ ReadSet *importCnyReadSet(char *filename)
 	for (sequenceIndex = 0; sequenceIndex < sequenceCount; sequenceIndex += 1) {
 		reads->categories[sequenceIndex] = seqReadInfo.m_currCategory;
 		if (sizeof(ShortLength) == sizeof(int16_t) && seqReadInfo.m_currentReadLength > SHRT_MAX) {
-			velvetLog("Read %li of length %lli, longer than limit %i\n",
+			velvetLog("Read %li of length %"PRILL"i, longer than limit %i\n",
 					(long) sequenceIndex + 1, (long long) seqReadInfo.m_currentReadLength, SHRT_MAX);
 			velvetLog("You should recompile Velvet with the LONGSEQUENCES option.\n");
 			exit(1);
@@ -301,7 +310,7 @@ ReadSet *importCnyReadSet(char *filename)
 		reads->tSequences[sequenceIndex].length = seqReadInfo.m_currentReadLength;
 		arrayLength = (reads->tSequences[sequenceIndex].length + 3) / 4;
 		if ((tmp + arrayLength) > arrayEnd) {
-			velvetLog("array location 0x%lx for seq %ld beyond end 0x%lx\n", (uint64_t) tmp, (uint64_t) sequenceIndex, (uint64_t) arrayEnd);
+			velvetLog("array location %p for seq %"PRIu64" beyond end %p\n", (void *) tmp, (uint64_t) sequenceIndex, (void *) arrayEnd);
 			exit(1);
 		}
 		totalLength += arrayLength;
@@ -386,18 +395,18 @@ static void moveCnySeqNucleotides(SequencesWriter *seqWriteInfo)
 
     uint64_t bufIdx = (seqWriteInfo->m_hostBuffersInUse == 2) ? (seqWriteInfo->m_pHostBufPtr - seqWriteInfo->m_pWriteBuffer[1] + WRITE_BUF_SIZE) : (seqWriteInfo->m_pHostBufPtr - seqWriteInfo->m_pWriteBuffer[0]);
     if (bufIdx + 4 > 2 * WRITE_BUF_SIZE) {
-	velvetLog("CnySeq bufIdx %ld too large\n", bufIdx);
-	exit(1);
+		velvetLog("CnySeq bufIdx %"PRIu64" too large\n", bufIdx);
+		exit(1);
     }
 
     if (bufIdx + 4 >= WRITE_BUF_SIZE) {
-	// continue writing to buf[1]
-	seqWriteInfo->m_pHostBufPtr = seqWriteInfo->m_pWriteBuffer[1] + (bufIdx + 4 - WRITE_BUF_SIZE);
-	seqWriteInfo->m_pHostBufPtrMax = seqWriteInfo->m_pWriteBuffer[1] + WRITE_BUF_SIZE;
-	seqWriteInfo->m_hostBufferFilePos[1] = seqWriteInfo->m_hostBufferFilePos[0] + WRITE_BUF_SIZE;
-	seqWriteInfo->m_hostBuffersInUse = 2;
+		// continue writing to buf[1]
+		seqWriteInfo->m_pHostBufPtr = seqWriteInfo->m_pWriteBuffer[1] + (bufIdx + 4 - WRITE_BUF_SIZE);
+		seqWriteInfo->m_pHostBufPtrMax = seqWriteInfo->m_pWriteBuffer[1] + WRITE_BUF_SIZE;
+		seqWriteInfo->m_hostBufferFilePos[1] = seqWriteInfo->m_hostBufferFilePos[0] + WRITE_BUF_SIZE;
+		seqWriteInfo->m_hostBuffersInUse = 2;
     } else
-	seqWriteInfo->m_pHostBufPtr += 4;
+		seqWriteInfo->m_pHostBufPtr += 4;
 
     seqWriteInfo->m_insertCurrentIndex += 16;
 
